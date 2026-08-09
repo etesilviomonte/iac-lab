@@ -1,0 +1,25 @@
+{
+  "name": "backend-data-hora",
+  "version": "1.0.0",
+  "description": "Backend Node.js que retorna a data e a hora atuais na rota padrão.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "keywords": [
+    "node",
+    "express",
+    "api",
+    "data",
+    "hora"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.1.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

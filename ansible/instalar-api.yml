@@ -1,0 +1,118 @@
+---
+- name: Instalar e executar API Node.js no container Ubuntu
+  hosts: containers
+  gather_facts: true
+
+  vars:
+    app_dir: /opt/api
+    app_name: api-data-hora
+    app_port: 3000
+
+  tasks:
+
+    - name: Atualizar lista de pacotes
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Instalar dependencias basicas
+      ansible.builtin.apt:
+        name:
+          - curl
+          - ca-certificates
+        state: present
+
+    - name: Remover Node.js antigo
+      ansible.builtin.apt:
+        name:
+          - nodejs
+          - npm
+          - libnode-dev
+        state: absent
+        purge: yes
+
+    - name: Configurar repositorio NodeSource para Node.js 20
+      ansible.builtin.shell: |
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+      args:
+        executable: /bin/bash
+
+    - name: Instalar Node.js 20
+      ansible.builtin.apt:
+        name: nodejs
+        state: present
+        update_cache: yes
+
+    - name: Verificar versao do Node.js
+      ansible.builtin.command:
+        cmd: node --version
+      register: node_version
+      changed_when: false
+
+    - name: Mostrar versao do Node.js
+      ansible.builtin.debug:
+        msg: "Node.js instalado: {{ node_version.stdout }}"
+
+    - name: Remover processo antigo do PM2
+      ansible.builtin.shell: |
+        if command -v pm2 >/dev/null 2>&1; then
+          pm2 delete {{ app_name }} || true
+        fi
+      changed_when: false
+
+    - name: Remover instalacao antiga da API
+      ansible.builtin.file:
+        path: /opt/api-data-hora
+        state: absent
+
+    - name: Remover diretorio atual da API
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        state: absent
+
+    - name: Criar diretorio da aplicacao
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copiar API local para o container
+      ansible.builtin.copy:
+        src: /mnt/c/iac-lab/api/
+        dest: "{{ app_dir }}/"
+
+    - name: Instalar dependencias da API
+      ansible.builtin.command:
+        cmd: npm install
+        chdir: "{{ app_dir }}"
+
+    - name: Instalar PM2 globalmente
+      ansible.builtin.command:
+        cmd: npm install -g pm2
+
+    - name: Iniciar API com PM2
+      ansible.builtin.command:
+        cmd: pm2 start src/server.js --name {{ app_name }}
+        chdir: "{{ app_dir }}"
+
+    - name: Salvar configuracao do PM2
+      ansible.builtin.command:
+        cmd: pm2 save
+      changed_when: false
+
+    - name: Aguardar API iniciar
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ app_port }}"
+        timeout: 30
+
+    - name: Testar API
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ app_port }}/"
+        method: GET
+        return_content: yes
+        status_code: 200
+      register: api_response
+
+    - name: Mostrar resposta da API
+      ansible.builtin.debug:
+        var: api_response.content

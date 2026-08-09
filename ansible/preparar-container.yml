@@ -1,0 +1,15 @@
+---
+- name: Preparar container Ubuntu para gerenciamento com Ansible
+  hosts: containers
+  gather_facts: false
+
+  tasks:
+
+    - name: Atualizar lista de pacotes e instalar Python
+      ansible.builtin.raw: |
+        apt-get update
+        apt-get install -y python3
+      changed_when: true
+
+    - name: Verificar conexão do Ansible
+      ansible.builtin.ping:
